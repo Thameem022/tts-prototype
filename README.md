@@ -59,3 +59,27 @@ docker run -p 8080:80 -e INWORLD_API_KEY=YOUR_BASE64_BASIC_TOKEN tts-webapp
 - The backend exposes a WebSocket at `/ws/tts`.
 - The frontend connects to the same host and path and streams base64 PCM chunks.
 - Ensure your `INWORLD_API_KEY` is the Base64 Basic token only.
+
+## Gemini Chat Bot
+
+We added a simple Gemini chat endpoint and UI alongside the TTS demo.
+
+Backend:
+- Endpoint: `POST /api/gemini/chat`
+- Env: set `GEMINI_API_KEY` in `backend/.env` (copy from `backend/env.sample`)
+- Dependency: `google-generativeai` is included in `backend/requirements.txt`
+
+Example request body:
+
+```json
+{
+  "messages": [
+    { "role": "user", "content": "Hello" }
+  ],
+  "model": "gemini-1.5-flash"
+}
+```
+
+Frontend:
+- The chat UI lives in `frontend/src/App.jsx` under the "Gemini Chat" section.
+- Client helper `sendGeminiChat` is exported from `frontend/src/voices.js`.

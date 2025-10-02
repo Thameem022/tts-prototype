@@ -20,3 +20,17 @@ export const VOICES = [
 	{ voiceId: 'Wendy', displayName: 'Wendy', description: 'Posh, middle-aged British female voice' },
 	{ voiceId: 'Dominus', displayName: 'Dominus', description: 'Robotic, deep male; menacing; villain-ready' }
 ]
+
+export async function sendGeminiChat(messages, options = {}) {
+	const base = typeof window === 'undefined'
+		? 'http://localhost:8000'
+		: `${window.location.origin}`
+
+	const res = await fetch(`${base}/api/gemini/chat`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ messages, ...options })
+	})
+	const data = await res.json()
+	return data
+}

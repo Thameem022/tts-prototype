@@ -4,7 +4,7 @@ import base64
 from typing import AsyncIterator
 
 import httpx
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, Body
 from fastapi.middleware.cors import CORSMiddleware
 
 # Load .env from the backend directory if present
@@ -31,6 +31,7 @@ app.add_middleware(
 
 INWORLD_API_KEY = os.getenv("INWORLD_API_KEY")
 TTS_URL = "https://api.inworld.ai/tts/v1/voice:stream"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 
 async def _stream_inworld_tts(payload: dict) -> AsyncIterator[str]:
@@ -74,4 +75,55 @@ async def tts_websocket(ws: WebSocket):
 		await ws.send_text(json.dumps({"error": str(e)}))
 		await ws.close()
 
+
+
+@app.post("/api/gemini/chat")
+async def gemini_chat(payload: dict = Body(...)):
+    """
+    Minimal chat endpoint for Gemini. Expects JSON payload:
+    {
+        "messages": [
+            {"role": "user"|"model"|"system", "content": "..."}
+        ],
+        "model": "gemini-1.5-flash" // optional, defaults to gemini-1.5-flash
+    }
+    """
+    if not GEMINI_API_KEY:
+        return {"error": "Missing GEMINI_API_KEY"}
+
+    try:
+        import google.generativeai as genai
+    except Exception as e:
+        return {"error": f"Gemini SDK not installed: {e}"}
+
+    genai.configure(api_key=GEMINI_API_KEY)
+
+    model_name = payload.get("model") or "gemini-2.5-flash"
+    messages = payload.get("messages") or []
+
+    # Convert generic messages to Gemini's content format
+    # We will combine into a single prompt maintaining roles
+    parts = []
+    for m in messages:
+        role = (m.get("role") or "user").lower()
+        text = m.get("content") or ""
+        if not text:
+            continue
+        prefix = "User:" if role in ("user", "system") else "Assistant:"
+        parts.append(f"{prefix} {text}")
+
+    prompt = "\n".join(parts) if parts else "Hello"
+
+    try:
+        model = genai.GenerativeModel(model_name)
+        result = await _run_blocking(lambda: model.generate_content(prompt))
+        text = getattr(result, "text", None) or (result.candidates[0].content.parts[0].text if getattr(result, "candidates", None) else "")
+        return {"reply": text}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _run_blocking(fn):
+    import anyio
+    return await anyio.to_thread.run_sync(fn)
 

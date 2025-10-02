@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
-import { VOICES } from './voices.js'
+import { VOICES, sendGeminiChat } from './voices.js'
 
 function App() {
 	const [text, setText] = useState('')
 	const [isPlaying, setIsPlaying] = useState(false)
 	const [voiceId, setVoiceId] = useState('Ashley')
+	const [chatInput, setChatInput] = useState('')
+	const [messages, setMessages] = useState([])
 
 	// Fixed values (no UI controls)
 	const modelId = 'inworld-tts-1'
@@ -87,6 +89,18 @@ function App() {
 		setIsPlaying(false)
 	}
 
+	const sendChat = async () => {
+		const content = chatInput.trim()
+		if (!content) return
+		const nextMessages = [...messages, { role: 'user', content }]
+		setMessages(nextMessages)
+		setChatInput('')
+		const res = await sendGeminiChat(nextMessages)
+		if (res?.reply) {
+			setMessages((prev) => [...prev, { role: 'model', content: res.reply }])
+		}
+	}
+
 	return (
 		<div className="container">
 			<div className="header">
@@ -126,6 +140,38 @@ function App() {
 								))}
 							</select>
 						</label>
+					</div>
+				</div>
+
+				<div className="card">
+					<div className="section-title">Gemini Chat</div>
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+						<div style={{
+							border: '1px solid rgba(255,255,255,0.08)',
+							borderRadius: 8,
+							padding: 12,
+							height: 240,
+							overflow: 'auto',
+							background: 'rgba(255,255,255,0.02)'
+						}}>
+							{messages.length === 0 && (
+								<div style={{ opacity: 0.6 }}>Ask anything and the Gemini bot will reply.</div>
+							)}
+							{messages.map((m, idx) => (
+								<div key={idx} style={{ marginBottom: 8 }}>
+									<strong>{m.role === 'user' ? 'You' : 'Gemini'}:</strong> {m.content}
+								</div>
+							))}
+						</div>
+						<div style={{ display: 'flex', gap: 8 }}>
+							<input
+								className="input"
+								placeholder="Type a message..."
+								value={chatInput}
+								onChange={(e) => setChatInput(e.target.value)}
+							/>
+							<button className="button" onClick={sendChat}>Send</button>
+						</div>
 					</div>
 				</div>
 			</div>
